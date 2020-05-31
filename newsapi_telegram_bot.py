@@ -1,4 +1,5 @@
 from bot_data import BOT_TOKEN, NEWSAPI_TOKEN
+from bot_setup import setup_bot, PLATFORM
 
 from datetime import datetime
 
@@ -128,6 +129,7 @@ class NewsApiTelegramBot(ChatHandler):
 
 
 def main():
+	setup_bot(PLATFORM)
 	bot = DelegatorBot(BOT_TOKEN, [ pave_event_space()(per_application(), create_open, NewsApiTelegramBot, timeout=np.inf) ])
 	MessageLoop(bot).run_as_thread()
 
