@@ -2,9 +2,7 @@ import telepot
 import urllib3
 
 
-# fill up with platform used to host the bot
-PLATFORM = ''
-
+# platform value is to be stored in bot_config.py as variable named "PLATFORM"
 def setup_bot(platform: str):
 	if platform == 'PYTHONANYWHERE':
 		# You can leave this bit out if you're using a paid PythonAnywhere account
