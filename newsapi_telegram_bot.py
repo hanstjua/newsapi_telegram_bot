@@ -4,6 +4,8 @@ from datetime import datetime
 
 from enum import Enum
 
+import json
+
 import numpy as np
 
 import requests
@@ -20,6 +22,8 @@ import time
 from typing import List
 
 CHAR_TO_ESCAPE_LIST = ['(', ')', '.', '=', '-']
+
+SUBSCRIBER_LIST_FILENAME = 'subscribers.json'
 
 
 class BotCommand(Enum):
@@ -43,10 +47,22 @@ class NewsApiTelegramBot(ChatHandler):
 		self.listener.capture([lambda msg: True])
 
 		self.subscriber_list: List[int] = list()
-		self.scheduledBroadcaster: Thread = Thread(target=broadcast_task, args=(self.broadcast_news,))
-		self.scheduledBroadcaster.start()
 
-	def sanitiseString(self, string: str) -> str:
+		# load subscriber list from file
+		try:
+			with open(SUBSCRIBER_LIST_FILENAME, 'r') as f:
+				self.subscriber_list = json.load(f)
+		except FileNotFoundError:
+			print('subscriber list does not exist.')
+
+		self.scheduled_broadcaster: Thread = Thread(target=broadcast_task, args=(self.broadcast_news,))
+		self.scheduled_broadcaster.start()
+
+	def save_subscriber_list(self):
+		with open(SUBSCRIBER_LIST_FILENAME, 'w') as f:
+			json.dump(self.subscriber_list, f)
+
+	def sanitise_string(self, string: str) -> str:
 		if not string:
 			return ''
 
@@ -67,10 +83,12 @@ class NewsApiTelegramBot(ChatHandler):
 		if command == BotCommand.SUBSCRIBE.value:
 			if not chat_id in self.subscriber_list:
 				self.subscriber_list.append(chat_id)
+				self.save_subscriber_list()
 				self.bot.sendMessage(chat_id, 'You are now in my subscriber list.')
 		elif command == BotCommand.UNSUBSCRIBE.value:
 			try:
 				self.subscriber_list.remove(chat_id)
+				self.save_subscriber_list()
 				self.bot.sendMessage(chat_id, 'You are no longer in my subscriber list.')
 			except ValueError:
 				self.bot.sendMessage(chat_id, 'You have not subscribed to me yet.')
@@ -78,7 +96,7 @@ class NewsApiTelegramBot(ChatHandler):
 			print('<< test >>')
 			self.broadcast_news()
 
-	def getArticleList(self) -> List[dict]:
+	def get_article_list(self) -> List[dict]:
 		url = r'https://newsapi.org/v2/top-headlines?country={}&apiKey={}'.format('sg', NEWSAPI_TOKEN)
 
 		resp = requests.get(url)
@@ -88,11 +106,11 @@ class NewsApiTelegramBot(ChatHandler):
 		else:
 			return []
 
-	def generateNewsMessage(self, article: dict) -> str:
-		source = self.sanitiseString(article['source']['name'])
-		author = self.sanitiseString(article['author'])
-		title = self.sanitiseString(article['title'])
-		description = self.sanitiseString(article['description'])
+	def generate_news_message(self, article: dict) -> str:
+		source = self.sanitise_string(article['source']['name'])
+		author = self.sanitise_string(article['author'])
+		title = self.sanitise_string(article['title'])
+		description = self.sanitise_string(article['description'])
 		url = article['url']
 
 		message = '\[_*{}*_\] *{}*\n_by {}_\n\n{}\n\nRead more [here]({})\.'.format(source.split('\.')[0].upper(), title, author, description, url)
@@ -100,12 +118,12 @@ class NewsApiTelegramBot(ChatHandler):
 		return message
 
 	def broadcast_news(self):
-		article_list = self.getArticleList()
+		article_list = self.get_article_list()
 
 		# consider using thread pool
 		for subscriber in self.subscriber_list:
 			for article in article_list:
-				message = self.generateNewsMessage(article)
+				message = self.generate_news_message(article)
 				self.bot.sendMessage(subscriber, message, parse_mode='MarkdownV2')
 
 
@@ -114,7 +132,7 @@ def main():
 	MessageLoop(bot).run_as_thread()
 
 	while 1:
-		time.sleep(10)
+		time.sleep(3600)
 
 if __name__ == '__main__':
 	main()
