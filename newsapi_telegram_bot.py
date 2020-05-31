@@ -1,5 +1,6 @@
 from bot_data import BOT_TOKEN, NEWSAPI_TOKEN
-from bot_setup import setup_bot, PLATFORM
+from bot_setup import setup_bot
+from bot_config import PLATFORM
 
 from datetime import datetime
 
